@@ -1,196 +1,158 @@
 # 🪟 Art Plena Persianas — Site Institucional
 
-> Site de landing page para a **Art Plena Persianas**, especialistas em persianas, cortinas e rolôs sob medida desde 1981. Região do Grande ABC Paulista.
+Site institucional completo para a **Art Plena Persianas**, empresa especializada em persianas, cortinas e rolôs sob medida desde 1981. O projeto inclui catálogo de produtos, seção de serviços, formulário de agendamento integrado ao EmailJS e camada de segurança anti-inspeção.
 
 ---
 
-## 📁 Estrutura de Arquivos
+## 📁 Estrutura do Projeto
 
 ```
-artplena/
+art-plena-persianas/
 ├── index.html          # Página principal
-├── script.js           # JavaScript (formulário, animações, segurança)
+├── script.js           # Lógica do formulário, timeline e integrações
+├── security.js         # Camada de proteção anti-devtools / anti-cópia
 ├── CSS/
-│   ├── global.css      # Tokens de design, nav, hero, componentes globais
-│   └── index.css       # Seção de serviços, ajustes de layout, acessibilidade
-└── README.md           # Este arquivo
+│   ├── global.css      # Reset, variáveis de design e componentes globais
+│   └── index.css       # Estilos específicos da página index
+└── assets/
+    ├── principal.png
+    ├── persiana_melhorada.jpg
+    ├── rolotranslucida1.png
+    ├── blackout2.png
+    ├── telasolar3.png
+    ├── doublevision4.png
+    ├── persiana5.png
+    ├── cortina6.png
+    ├── motorizada7.png
+    ├── lavagem.png
+    ├── manutencao.png
+    └── img.png
 ```
 
 ---
 
-## ✨ Seções da Página
+## ✨ Funcionalidades
 
-| Seção | ID | Descrição |
-|---|---|---|
-| Hero | `#inicio` | Apresentação principal com CTA e promoção |
-| Strip | — | Faixa com diferenciais rápidos |
-| Sobre | `#sobre` | História e diferenciais da empresa |
-| Produtos | `#produtos` | Catálogo completo de produtos |
-| **Serviços** | `#servicos` | **Lavagem de Tecidos + Manutenção** *(novo)* |
-| Como Funciona | `#processo` | Timeline com as 4 etapas |
-| Por que nos escolher | `#sobre2` | Grade de benefícios |
-| Depoimentos | — | 3 avaliações de clientes |
-| Agendar Visita | `#agendar` | Formulário em 3 passos |
-| Contato / Rodapé | `#contato` | Informações e links |
-
----
-
-## 🧺 Serviços Adicionados
-
-### Lavagem de Tecidos
-- Higienização de cortinas, rolôs e persianas verticais
-- Remoção de mofo, ácaros e manchas
-- Aplicação de impermeabilizante (opcional)
-- Retirada e recolocação inclusa
-
-### Manutenção
-- Troca de correntes e cordões
-- Reparo de mecanismos e trilhos
-- Regulagem e reajuste
-- Substituição de lâminas danificadas
-- Manutenção de motorização
+- **Navegação fixa** com links para todas as seções e botão de CTA para WhatsApp
+- **Hero section** com promoção de 10% OFF, estatísticas e imagem de destaque
+- **Strip de benefícios** animada (visita grátis, frete grátis, instalação gratuita etc.)
+- **Seção Sobre** com diferenciais em cards interativos
+- **Catálogo de produtos** em grid responsivo (Rolô Translúcida, Blackout, Tela Solar, Double Vision, Vertical, Cortina, Motorização)
+- **Seção de Serviços** — Lavagem de Tecidos e Manutenção Completa com cards detalhados
+- **Timeline animada** com scroll-driven (4 etapas do processo)
+- **Seção de Benefícios** com imagem lateral e cards de vantagens
+- **Depoimentos** de clientes em grid de 3 colunas
+- **Formulário de agendamento em 3 passos** (dados pessoais → preferências de contato → confirmação)
+- **Modal de sucesso** com confete animado e botão de abertura do WhatsApp
+- **Rodapé completo** com links, contato e redes sociais
+- **Botão flutuante do WhatsApp** com animação de pulse
 
 ---
 
-## 🔧 Tecnologias Utilizadas
+## 📬 Integração EmailJS
 
-| Tecnologia | Uso |
-|---|---|
-| HTML5 semântico | Estrutura e acessibilidade |
-| CSS3 puro | Layout, animações, responsividade |
-| JavaScript ES6+ | Formulário, timeline, validação |
-| [EmailJS](https://www.emailjs.com/) | Envio de e-mail sem backend |
-| Google Fonts | Bebas Neue + Montserrat |
-| Unsplash | Imagens de demonstração |
+O formulário de agendamento envia os dados via [EmailJS](https://www.emailjs.com/) sem necessidade de backend.
 
----
-
-## 📬 Configuração do EmailJS
-
-No arquivo `script.js`, atualize as constantes caso necessário:
+### Configuração (`script.js`)
 
 ```js
-const EJ_PK  = 'SUA_PUBLIC_KEY';   // Dashboard > Account > Public Key
-const EJ_SVC = 'SEU_SERVICE_ID';   // Email Services > Service ID
-const EJ_TPL = 'SEU_TEMPLATE_ID';  // Email Templates > Template ID
+const EJ_PK  = 'Ffz5TXgaZhPmuWLEm';   // Public Key
+const EJ_SVC = 'service_y6hvjjs';       // Service ID
+const EJ_TPL = 'template_xsnta2r';      // Template ID
 ```
 
-### Variáveis do Template EmailJS
+### Variáveis enviadas ao template
 
-O template deve conter estas variáveis:
-
-```
-{{nome}}       — Nome do cliente
-{{email}}      — E-mail do cliente
-{{telefone}}   — Telefone
-{{cidade}}     — Cidade / Bairro
-{{produtos}}   — Produtos/serviços de interesse
-{{contato}}    — Forma de contato preferida
-{{periodo}}    — Período para visita
-{{mensagem}}   — Mensagem adicional
-{{to_email}}   — Destinatário (artplenapersianas@gmail.com)
-```
+| Variável     | Descrição                           |
+|--------------|-------------------------------------|
+| `nome`       | Nome completo do cliente            |
+| `email`      | E-mail do cliente                   |
+| `telefone`   | Telefone formatado                  |
+| `cidade`     | Cidade / bairro                     |
+| `produtos`   | Produtos e serviços de interesse    |
+| `contato`    | Canal preferido (WhatsApp/Tel/E-mail)|
+| `periodo`    | Período da visita (Manhã/Tarde/Qualquer) |
+| `mensagem`   | Mensagem adicional (opcional)       |
+| `to_email`   | Destinatário fixo                   |
 
 ---
 
-## 🛡️ Segurança Implementada
+## 🔒 Camada de Segurança (`security.js`)
 
-### No HTML (`index.html`)
-- **Content Security Policy (CSP)** via `<meta>` — restringe fontes de scripts, estilos e conexões
-- **X-Content-Type-Options** — impede MIME sniffing
-- **X-Frame-Options: SAMEORIGIN** — bloqueia clickjacking
-- **Referrer-Policy** — controla informações de referência
-- **Permissions-Policy** — desabilita câmera, microfone e geolocalização
-- `rel="noopener noreferrer"` em todos os links externos
+O arquivo `security.js` implementa múltiplas técnicas de proteção do código-fonte:
 
-### No JavaScript (`script.js`)
-- **Sanitização de inputs** — escapa HTML antes de processar/exibir (`_sanitize()`)
-- **Validação rigorosa** — regex, comprimento máximo, caracteres proibidos
-- **Rate limiting local** — máx. 3 envios por sessão / 2 por minuto
-- **Anti-bot por tempo** — bloqueia submissões em menos de 4 segundos
-- **textContent em vez de innerHTML** — previne XSS no resumo do formulário
-- `encodeURIComponent` no link do WhatsApp
+| Vetor | Técnica |
+|---|---|
+| Clique direito | `contextmenu` bloqueado |
+| Atalhos de teclado | F12, Ctrl+U, Ctrl+S, Ctrl+P, Ctrl+Shift+I/J/C bloqueados |
+| Anti-print | `@media print { display: none }` + evento `beforeprint` |
+| Anti-copy | Evento `copy` substituído por watermark |
+| Anti-iframe | Redirecionamento se carregado em `<iframe>` |
+| DevTools — janela | Limiar de 220px entre `outerWidth` e `innerWidth` |
+| DevTools — timing | `debugger` statement com medição de performance |
+| DevTools — console | Watermark a cada 8s + `console.clear()` |
+| Proteção de imagens | `draggable="false"` + bloqueio de contextmenu |
+| Variáveis globais | Chaves EmailJS ocultadas com `Object.defineProperty` |
+
+> ⚠️ A camada de segurança exibe um overlay de bloqueio caso detecte ferramentas de desenvolvedor abertas.
 
 ---
 
-## 🔒 Segurança Adicional — Recomendações para o Servidor
+## 🎨 Design Tokens (CSS)
 
-> As medidas abaixo **não podem ser feitas via HTML** — precisam ser configuradas no servidor (Apache, Nginx, Cloudflare, etc.)
+Todas as variáveis de estilo estão centralizadas em `:root` no `global.css`:
 
-### 1. HTTP Security Headers (Nginx)
-```nginx
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-add_header X-Frame-Options "SAMEORIGIN" always;
-add_header X-Content-Type-Options "nosniff" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://images.unsplash.com data:; connect-src 'self' https://api.emailjs.com; frame-ancestors 'none';" always;
+```css
+--gold:    #F0B429   /* Dourado principal */
+--gold-d:  #C9920A   /* Dourado escuro */
+--ink:     #080808   /* Fundo escuro principal */
+--white:   #FFFFFF
+--off:     #F7F6F2   /* Fundo claro alternado */
+--stone:   #7A7977   /* Texto secundário */
+--r:       12px      /* Border-radius padrão */
+--r2:      20px      /* Border-radius grande */
+--ease:    .32s cubic-bezier(.4,0,.2,1)
 ```
 
-### 2. Para Apache (`.htaccess`)
-```apache
-Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-Header always set X-Frame-Options "SAMEORIGIN"
-Header always set X-Content-Type-Options "nosniff"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"
-```
-
-### 3. Cloudflare (gratuito — recomendado)
-- ✅ Ative **HTTPS automático** e **HSTS**
-- ✅ Ative **Bot Fight Mode**
-- ✅ Ative **DDoS Protection**
-- ✅ Configure **Firewall Rules** para bloquear países suspeitos se necessário
-- ✅ Ative o **WAF (Web Application Firewall)** no plano Free
-
-### 4. SSL/TLS
-- Use sempre HTTPS. Certificados gratuitos via **Let's Encrypt** ou pelo próprio Cloudflare.
-
-### 5. Manutenção contínua
-- Mantenha as bibliotecas (EmailJS, etc.) sempre atualizadas
-- Revise periodicamente os logs de acesso em busca de comportamentos suspeitos
-- Use o [Observatory da Mozilla](https://observatory.mozilla.org/) para auditar os headers do seu site
+**Fontes utilizadas (Google Fonts):**
+- `Bebas Neue` — Títulos e destaques
+- `Montserrat` — Corpo, labels e botões
 
 ---
 
 ## 📱 Responsividade
 
-| Breakpoint | Comportamento |
+O layout é totalmente responsivo com breakpoints definidos via `@media`:
+
+| Breakpoint | Ajustes |
 |---|---|
-| > 900px | Layout completo, hero em 2 colunas |
-| ≤ 900px | Hero em coluna única, nav sem links, cards empilhados |
-| ≤ 720px | Cards de serviços empilhados |
-| ≤ 600px | Formulário em coluna única, footer empilhado |
+| `≤ 900px` | Hero single-column, grade de produtos 1 coluna, nav sem links, serviços empilhados |
+| `≤ 600px` | Footer single-column, grid de produtos 1 coluna, pills verticais, formulário single-column |
 
 ---
 
-## ♿ Acessibilidade
+## 🚀 Como Usar
 
-- Skip link ("Pular para o conteúdo") para leitores de tela
-- `aria-label` em todos os links externos e ícones decorativos
-- `aria-hidden="true"` em elementos puramente decorativos
-- `role="alert"` nas mensagens de erro do formulário
-- `role="dialog" aria-modal="true"` no modal de sucesso
-- `aria-pressed` nos botões de seleção (produtos, período, contato)
-- `aria-progressbar` no indicador de passos
-- Foco gerenciado no modal de sucesso
-- `for` em todos os `<label>`
-- Fechamento do modal com tecla **Escape**
-- `loading="lazy"` em todas as imagens fora do hero
+1. **Clone ou baixe** os arquivos do projeto
+2. Configure seu template no [EmailJS](https://www.emailjs.com/) com as variáveis listadas acima
+3. Atualize as constantes `EJ_PK`, `EJ_SVC` e `EJ_TPL` em `script.js`
+4. Substitua as imagens em `assets/` pelas fotos reais dos produtos
+5. Faça o deploy em qualquer hospedagem estática (GitHub Pages, Netlify, Vercel etc.)
+
+> Nenhum framework ou build step é necessário — HTML, CSS e JS puros.
 
 ---
 
 ## 📞 Contato da Empresa
 
-| Canal | Dados |
+| Canal | Info |
 |---|---|
-| WhatsApp | +55 (11) 92109-3849 |
-| E-mail | artplenapersianas@gmail.com |
-| Instagram | [@artplenapersianas](https://www.instagram.com/artplenapersianas) |
-| Região atendida | Grande ABC Paulista + São Paulo |
-| Horário | Seg–Sex 8h–18h · Sáb 8h–13h |
+| 📱 WhatsApp | [+55 (11) 92109-3849](https://wa.me/5511921093849) |
+| ✉️ E-mail | artplenapersianas@gmail.com |
+| 📷 Instagram | [@artplenapersianas](https://www.instagram.com/artplenapersianas) |
+| 📍 Região | Grande ABC Paulista — São Bernardo do Campo, Santo André, São Caetano, Diadema e toda Grande SP |
+| 🕐 Horário | Seg–Sex: 8h–18h · Sáb: 8h–13h |
 
 ---
 
-## 📄 Licença
-
-Projeto privado — © 2026 Art Plena Persianas. Todos os direitos reservados.
+© 2026 Art Plena Persianas — Todos os direitos reservados.
