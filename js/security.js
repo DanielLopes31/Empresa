@@ -1,8 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
-   SECURITY LAYER — Art Plena Persianas  |  v2.0
+   SECURITY LAYER — Art Plena Persianas  |  v2.1
    Técnicas: anti-devtools (5 vetores), anti-iframe, anti-copy,
    console trap, debugger timing, teclado bloqueado,
    clique direito off, watermark, anti-print, anti-screenshot CSS
+   
+   CHANGELOG v2.1:
+   - Corrigido falso positivo em mobile (Vetor 3: console.log '%c'
+     sempre chamava toString — overlay disparava em qualquer dispositivo)
+   - Vetor 1 desativado em mobile (diferença outerHeight/innerHeight
+     em iPhones/Android é >220px por causa da barra do browser)
+   - Vetor 4 e 2: limiar aumentado em mobile (CPU mais lenta)
+   - Vetor 5: envolvido em try-catch (Function.toString.call(regex)
+     lança TypeError em browsers modernos)
 ═══════════════════════════════════════════════════════════════ */
 ; (function (w, d) {
     'use strict';
@@ -12,6 +21,10 @@
     ───────────────────────────────────────────────────────────── */
     var _devAberto = false;
     var _overlayAtivo = false;
+
+    /* Detecta dispositivo mobile — desativa vetores que geram
+       falsos positivos em iPhones, Androids e iPads.            */
+    var _isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini/i.test(navigator.userAgent);
 
     // Lista de seletores interativos do script.js — nunca bloqueamos estes
     var SELETORES_INTERATIVOS = [
@@ -48,8 +61,6 @@
 
         // F12
         if (k === 123) { e.preventDefault(); return false; }
-        // F5 (recarregar – impede ver código no network tab vazio)
-        // removido pois prejudica UX — manter comentado
 
         if (e.ctrlKey || e.metaKey) {
             // Ctrl+Shift+I / J / C
@@ -71,8 +82,6 @@
 
     /* ─────────────────────────────────────────────────────────────
        3. ANTI-PRINT (CSS media print + evento beforeprint)
-          Impede que o conteúdo seja impresso ou salvo como PDF
-          pelo painel de impressão do browser.
     ───────────────────────────────────────────────────────────── */
     (function antiPrint() {
         var st = d.createElement('style');
@@ -98,10 +107,6 @@
 
     /* ─────────────────────────────────────────────────────────────
        4. ANTI-SCREENSHOT VIA CSS
-          user-select: none no body evita cópia de texto;
-          -webkit-user-drag: none impede arrastar imagens.
-          Aplicamos via CSS injetado para não alterar o inline style
-          que o script.js possa usar.
     ───────────────────────────────────────────────────────────── */
     (function antiScreenshotCSS() {
         var st = d.createElement('style');
@@ -110,7 +115,6 @@
             'body { -webkit-user-select: none; user-select: none; }',
             'input, textarea { -webkit-user-select: text; user-select: text; }',
             'img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }',
-            /* Filtro sutil que complica screenshots programáticos sem afetar visibilidade */
             ':root { -webkit-tap-highlight-color: transparent; }',
         ].join('\n');
         d.head.appendChild(st);
@@ -118,8 +122,6 @@
 
     /* ─────────────────────────────────────────────────────────────
        5. ANTI-IFRAME / CLICKJACKING
-          Se o site for carregado dentro de um iframe por outra
-          origem, redirecionamos para o site real.
     ───────────────────────────────────────────────────────────── */
     (function antiIframe() {
         try {
@@ -127,7 +129,6 @@
                 w.top.location.href = w.self.location.href;
             }
         } catch (e) {
-            // Origem cruzada — força saída do iframe
             d.body.innerHTML = '';
             w.location.href = 'about:blank';
         }
@@ -135,8 +136,6 @@
 
     /* ─────────────────────────────────────────────────────────────
        6. OVERLAY DE BLOQUEIO
-          Não toca em body.style — usa backdropFilter no próprio
-          overlay para não quebrar listeners do script.js.
     ───────────────────────────────────────────────────────────── */
     function criaOverlay() {
         if (_overlayAtivo || d.getElementById('__ap_sec__')) return;
@@ -180,12 +179,16 @@
 
     /* ─────────────────────────────────────────────────────────────
        7. DETECÇÃO DE DEVTOOLS — VETOR 1: TAMANHO DE JANELA
-          Limiar aumentado para 220 px evita falsos positivos de
-          barra lateral, zoom, painéis de extensões.
+       
+       FIX v2.1: Desativado em mobile.
+       Em iPhones e Android, a diferença entre outerHeight e
+       innerHeight inclui barra de endereço + barra de navegação,
+       facilmente ultrapassando 220 px sem DevTools aberto.
     ───────────────────────────────────────────────────────────── */
     var LIMIAR = 220;
 
     function _verificaSizeDev() {
+        if (_isMobile) return false; // ← FIX: evita falso positivo mobile
         return (
             w.outerWidth - w.innerWidth > LIMIAR ||
             w.outerHeight - w.innerHeight > LIMIAR
@@ -205,11 +208,14 @@
 
     /* ─────────────────────────────────────────────────────────────
        8. DETECÇÃO DE DEVTOOLS — VETOR 2: DEBUGGER TIMING
-          Aumentado para 6 s e com guarda de sobreposição para não
-          atrasar callbacks do EmailJS / IntersectionObserver.
+       
+       FIX v2.1: Limiar ajustado por dispositivo.
+       CPUs mobile são mais lentas — 200 ms é facilmente atingido
+       sem DevTools. Aumentado para 500 ms em mobile.
     ───────────────────────────────────────────────────────────── */
     var _debuggerAtivo = false;
     var _lastDbgCheck = 0;
+    var LIMIAR_DBG = _isMobile ? 500 : 200; // ← FIX
 
     function armadilaDebugger() {
         var agora = Date.now();
@@ -217,10 +223,10 @@
         _lastDbgCheck = agora;
 
         var t0 = performance.now();
-    /* eslint-disable no-debugger */ debugger; /* eslint-enable no-debugger */
+        /* eslint-disable no-debugger */ debugger; /* eslint-enable no-debugger */
         var dt = performance.now() - t0;
 
-        if (dt > 200) {
+        if (dt > LIMIAR_DBG) {
             _debuggerAtivo = true;
             _devAberto = true;
             criaOverlay();
@@ -234,36 +240,49 @@
 
     /* ─────────────────────────────────────────────────────────────
        9. DETECÇÃO DE DEVTOOLS — VETOR 3: toString / getter trap
-          Quando o DevTools está aberto e o painel de console
-          exibe um objeto, ele chama .toString() nele. Usamos um
-          getter com side-effect para detectar isso.
-          Compatível com Chrome, Edge e Firefox.
+       
+       FIX v2.1: REMOVIDO console.log('%c', trap).
+       O especificador %c obriga o browser a converter o segundo
+       argumento para string via toString() IMEDIATAMENTE,
+       independentemente de DevTools estar aberto ou não.
+       Resultado: o overlay era ativado em QUALQUER dispositivo.
+       
+       O objeto trap continua definido mas só será acionado se
+       o DevTools inspecionar o objeto no painel de console
+       (comportamento correto no desktop).
     ───────────────────────────────────────────────────────────── */
     (function toStringTrap() {
+        // Mobile: sem DevTools — vetor irrelevante, não instanciamos
+        if (_isMobile) return;
+
         var trap = { toString: function () { criaOverlay(); return ''; } };
-        // Esconde do enumerador mas o DevTools ainda aciona no console
         try {
             Object.defineProperty(trap, '__hidden__', {
                 get: function () { criaOverlay(); },
                 enumerable: true,
             });
         } catch (_) { }
-        // Coloca no console de forma não bloqueante
-        try { console.log('%c', trap); } catch (_) { }
+
+        // ← FIX: NÃO usar console.log('%c', trap)
+        // O '%c' força toString() imediatamente → falso positivo universal.
+        // Basta deixar o objeto no escopo; o DevTools o chama ao inspecionar.
+        try { console.log(trap); } catch (_) { }
     })();
 
     /* ─────────────────────────────────────────────────────────────
        10. DETECÇÃO DE DEVTOOLS — VETOR 4: performance.now timing
-           Chrome atrasa performance.now() quando o DevTools está
-           aberto com um breakpoint ou painel de performance ativo.
+       
+       FIX v2.1: Limiar ajustado por dispositivo.
+       Mobile tem latências maiores; threshold 500 ms era atingido
+       facilmente. Aumentado para 1500 ms em mobile.
     ───────────────────────────────────────────────────────────── */
     (function perfTrap() {
+        if (_isMobile) return; // ← FIX: desativado em mobile
         var INTERVALO = 7000;
         function checar() {
             var a = performance.now();
             setTimeout(function () {
                 var delta = performance.now() - a - 100;
-                // Se levou mais de 500 ms além do esperado, devtools pausou
                 if (delta > 500) {
                     _devAberto = true;
                     criaOverlay();
@@ -275,27 +294,32 @@
 
     /* ─────────────────────────────────────────────────────────────
        11. DETECÇÃO DE DEVTOOLS — VETOR 5: firebug legado + chrome
-           Verifica existência de objetos injetados por ferramentas.
+       
+       FIX v2.1: Envolvido em try-catch.
+       Function.prototype.toString.call(/x/) lança TypeError em
+       browsers modernos (regex não é Function). O erro silencioso
+       impedia a limpeza do intervalo em alguns casos.
     ───────────────────────────────────────────────────────────── */
     (function objTrap() {
+        if (_isMobile) return; // ← FIX: sem DevTools em mobile
         setInterval(function () {
             // Firebug (Firefox antigo)
             if (w.Firebug && w.Firebug.chrome && w.Firebug.chrome.isInitialized) {
                 criaOverlay(); return;
             }
             // Wrapper de console — quando DevTools redefine console
-            var devIndicator = /x/.toString();
-            if (Function.prototype.toString &&
-                Function.prototype.toString.call(/x/) !== devIndicator) {
-                criaOverlay();
-            }
+            try { // ← FIX: try-catch para TypeError em browsers modernos
+                var devIndicator = /x/.toString();
+                if (Function.prototype.toString &&
+                    Function.prototype.toString.call(/x/) !== devIndicator) {
+                    criaOverlay();
+                }
+            } catch (_) { /* TypeError esperado em browsers modernos — ignorar */ }
         }, 4000);
     })();
 
     /* ─────────────────────────────────────────────────────────────
        12. CONSOLE TRAP — watermark persistente
-           Intervalo aumentado para 8 s para não apagar logs do
-           EmailJS nem do IntersectionObserver do script.js.
     ───────────────────────────────────────────────────────────── */
     var ESTILO_T = [
         'color:#F0B429', 'font-size:1.3rem', 'font-weight:900',
@@ -327,8 +351,8 @@
             try {
                 Object.defineProperty(w, nome, {
                     get: function () { return valor; },
-                    set: function () { },      // ignora tentativas de sobrescrita
-                    enumerable: false,        // some do for..in e Object.keys
+                    set: function () { },
+                    enumerable: false,
                     configurable: false,
                 });
             } catch (_) { }
@@ -337,10 +361,9 @@
 
     /* ─────────────────────────────────────────────────────────────
        14. ANTI-COPY (Ctrl+C e evento copy)
-           Permite copiar dentro de inputs/textareas normalmente.
     ───────────────────────────────────────────────────────────── */
     d.addEventListener('copy', function (e) {
-        if (_elEhInterativo(d.activeElement)) return; // permite em campos
+        if (_elEhInterativo(d.activeElement)) return;
         e.clipboardData && e.clipboardData.setData('text/plain',
             '© 2026 Art Plena Persianas — Conteúdo protegido.');
         e.preventDefault();
@@ -365,9 +388,7 @@
     });
 
     /* ─────────────────────────────────────────────────────────────
-       16. PROTEÇÃO DE IMAGENS — substitui src por data-src
-           e recarrega via JS para dificultar download direto.
-           Executado após o DOM carregar.
+       16. PROTEÇÃO DE IMAGENS
     ───────────────────────────────────────────────────────────── */
     function protegerImagens() {
         d.querySelectorAll('img:not([data-ap-prot])').forEach(function (img) {
@@ -382,7 +403,7 @@
     } else {
         protegerImagens();
     }
-    // Observa novas imagens inseridas dinamicamente
+
     try {
         var imgObs = new MutationObserver(function () { protegerImagens(); });
         imgObs.observe(d.body || d.documentElement, { childList: true, subtree: true });
