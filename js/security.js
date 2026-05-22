@@ -1,17 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════
-   SECURITY LAYER — Art Plena Persianas  |  v2.1
+   SECURITY LAYER — Art Plena Persianas  |  v2.2
    Técnicas: anti-devtools (5 vetores), anti-iframe, anti-copy,
    console trap, debugger timing, teclado bloqueado,
    clique direito off, watermark, anti-print, anti-screenshot CSS
-   
-   CHANGELOG v2.1:
-   - Corrigido falso positivo em mobile (Vetor 3: console.log '%c'
-     sempre chamava toString — overlay disparava em qualquer dispositivo)
-   - Vetor 1 desativado em mobile (diferença outerHeight/innerHeight
-     em iPhones/Android é >220px por causa da barra do browser)
-   - Vetor 4 e 2: limiar aumentado em mobile (CPU mais lenta)
-   - Vetor 5: envolvido em try-catch (Function.toString.call(regex)
-     lança TypeError em browsers modernos)
+
+   CHANGELOG v2.2 (CORREÇÕES MOBILE):
+   - FIX CRÍTICO: armadilaDebugger() agora retorna em mobile.
+     A instrução `debugger;` rodando a cada 6s em celulares causava
+     travamentos e podia disparar o overlay erroneamente.
+   - FIX: setInterval(verificaDevtools) e listener resize agora são
+     registrados apenas em desktop. Desnecessário em mobile.
+   - FIX: avisoConsole() não chama console.clear() em mobile.
+     Alguns browsers mobile lançam erros silenciosos nessa chamada.
+   - FIX: CSS injetado removeu pointer-events:none de img.
+     Bloqueava eventos de toque em áreas sobrepostas a imagens.
+   - FIX: selectstart handler agora verifica touch event corretamente.
 ═══════════════════════════════════════════════════════════════ */
 ; (function (w, d) {
     'use strict';
@@ -24,7 +27,9 @@
 
     /* Detecta dispositivo mobile — desativa vetores que geram
        falsos positivos em iPhones, Androids e iPads.            */
-    var _isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini/i.test(navigator.userAgent);
+    var _isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini/i.test(navigator.userAgent)
+        || ('ontouchstart' in w)
+        || (navigator.maxTouchPoints > 0);
 
     // Lista de seletores interativos do script.js — nunca bloqueamos estes
     var SELETORES_INTERATIVOS = [
@@ -107,14 +112,19 @@
 
     /* ─────────────────────────────────────────────────────────────
        4. ANTI-SCREENSHOT VIA CSS
+
+       FIX v2.2: Removido pointer-events:none de img.
+       No mobile, esse estilo bloqueava toque em áreas sobrepostas
+       a imagens (ex.: botões dentro de cards com img de fundo),
+       tornando partes da interface não-responsivas ao toque.
     ───────────────────────────────────────────────────────────── */
     (function antiScreenshotCSS() {
         var st = d.createElement('style');
         st.id = '__ap_css_sec__';
         st.textContent = [
             'body { -webkit-user-select: none; user-select: none; }',
-            'input, textarea { -webkit-user-select: text; user-select: text; }',
-            'img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }',
+            'input, textarea, button, [contenteditable] { -webkit-user-select: text; user-select: text; }',
+            'img { -webkit-user-drag: none; user-drag: none; }',
             ':root { -webkit-tap-highlight-color: transparent; }',
         ].join('\n');
         d.head.appendChild(st);
@@ -179,16 +189,13 @@
 
     /* ─────────────────────────────────────────────────────────────
        7. DETECÇÃO DE DEVTOOLS — VETOR 1: TAMANHO DE JANELA
-       
-       FIX v2.1: Desativado em mobile.
-       Em iPhones e Android, a diferença entre outerHeight e
-       innerHeight inclui barra de endereço + barra de navegação,
-       facilmente ultrapassando 220 px sem DevTools aberto.
+
+       Desativado em mobile (já era, mantido).
     ───────────────────────────────────────────────────────────── */
     var LIMIAR = 220;
 
     function _verificaSizeDev() {
-        if (_isMobile) return false; // ← FIX: evita falso positivo mobile
+        if (_isMobile) return false;
         return (
             w.outerWidth - w.innerWidth > LIMIAR ||
             w.outerHeight - w.innerHeight > LIMIAR
@@ -203,21 +210,31 @@
         }
     }
 
-    w.addEventListener('resize', verificaDevtools, { passive: true });
-    setInterval(verificaDevtools, 1000);
+    /* FIX v2.2: resize e intervalo registrados SOMENTE em desktop.
+       Em mobile eram disparados desnecessariamente a cada 1s.    */
+    if (!_isMobile) {
+        w.addEventListener('resize', verificaDevtools, { passive: true });
+        setInterval(verificaDevtools, 1000);
+    }
 
     /* ─────────────────────────────────────────────────────────────
        8. DETECÇÃO DE DEVTOOLS — VETOR 2: DEBUGGER TIMING
-       
-       FIX v2.1: Limiar ajustado por dispositivo.
-       CPUs mobile são mais lentas — 200 ms é facilmente atingido
-       sem DevTools. Aumentado para 500 ms em mobile.
+
+       FIX v2.2: DESATIVADO COMPLETAMENTE EM MOBILE.
+       A instrução `debugger;` rodando a cada 6s em celulares:
+         - Causava micro-travamentos na thread principal.
+         - Em celulares lentos ultrapassava o limiar de 500ms e
+           disparava o overlay de bloqueio erroneamente.
+         - Browsers mobile não pausam em `debugger` sem DevTools
+           conectado, tornando o vetor inútil no mobile.
     ───────────────────────────────────────────────────────────── */
     var _debuggerAtivo = false;
     var _lastDbgCheck = 0;
-    var LIMIAR_DBG = _isMobile ? 500 : 200; // ← FIX
+    var LIMIAR_DBG = 200;
 
     function armadilaDebugger() {
+        if (_isMobile) return; /* FIX v2.2: completamente pulado em mobile */
+
         var agora = Date.now();
         if (agora - _lastDbgCheck < 5500) return;
         _lastDbgCheck = agora;
@@ -240,19 +257,10 @@
 
     /* ─────────────────────────────────────────────────────────────
        9. DETECÇÃO DE DEVTOOLS — VETOR 3: toString / getter trap
-       
-       FIX v2.1: REMOVIDO console.log('%c', trap).
-       O especificador %c obriga o browser a converter o segundo
-       argumento para string via toString() IMEDIATAMENTE,
-       independentemente de DevTools estar aberto ou não.
-       Resultado: o overlay era ativado em QUALQUER dispositivo.
-       
-       O objeto trap continua definido mas só será acionado se
-       o DevTools inspecionar o objeto no painel de console
-       (comportamento correto no desktop).
+
+       Já desativado em mobile na v2.1.
     ───────────────────────────────────────────────────────────── */
     (function toStringTrap() {
-        // Mobile: sem DevTools — vetor irrelevante, não instanciamos
         if (_isMobile) return;
 
         var trap = { toString: function () { criaOverlay(); return ''; } };
@@ -263,21 +271,16 @@
             });
         } catch (_) { }
 
-        // ← FIX: NÃO usar console.log('%c', trap)
-        // O '%c' força toString() imediatamente → falso positivo universal.
-        // Basta deixar o objeto no escopo; o DevTools o chama ao inspecionar.
         try { console.log(trap); } catch (_) { }
     })();
 
     /* ─────────────────────────────────────────────────────────────
        10. DETECÇÃO DE DEVTOOLS — VETOR 4: performance.now timing
-       
-       FIX v2.1: Limiar ajustado por dispositivo.
-       Mobile tem latências maiores; threshold 500 ms era atingido
-       facilmente. Aumentado para 1500 ms em mobile.
+
+       Já desativado em mobile na v2.1.
     ───────────────────────────────────────────────────────────── */
     (function perfTrap() {
-        if (_isMobile) return; // ← FIX: desativado em mobile
+        if (_isMobile) return;
         var INTERVALO = 7000;
         function checar() {
             var a = performance.now();
@@ -294,32 +297,33 @@
 
     /* ─────────────────────────────────────────────────────────────
        11. DETECÇÃO DE DEVTOOLS — VETOR 5: firebug legado + chrome
-       
-       FIX v2.1: Envolvido em try-catch.
-       Function.prototype.toString.call(/x/) lança TypeError em
-       browsers modernos (regex não é Function). O erro silencioso
-       impedia a limpeza do intervalo em alguns casos.
+
+       Já desativado em mobile na v2.1.
     ───────────────────────────────────────────────────────────── */
     (function objTrap() {
-        if (_isMobile) return; // ← FIX: sem DevTools em mobile
+        if (_isMobile) return;
         setInterval(function () {
-            // Firebug (Firefox antigo)
             if (w.Firebug && w.Firebug.chrome && w.Firebug.chrome.isInitialized) {
                 criaOverlay(); return;
             }
-            // Wrapper de console — quando DevTools redefine console
-            try { // ← FIX: try-catch para TypeError em browsers modernos
+            try {
                 var devIndicator = /x/.toString();
                 if (Function.prototype.toString &&
                     Function.prototype.toString.call(/x/) !== devIndicator) {
                     criaOverlay();
                 }
-            } catch (_) { /* TypeError esperado em browsers modernos — ignorar */ }
+            } catch (_) { }
         }, 4000);
     })();
 
     /* ─────────────────────────────────────────────────────────────
        12. CONSOLE TRAP — watermark persistente
+
+       FIX v2.2: console.clear() ignorado em mobile.
+       Alguns browsers Android/iOS lançam erros silenciosos ou
+       bloqueiam o event loop ao receber console.clear() em loop.
+       O aviso visual no console é irrelevante em mobile pois o
+       usuário final não tem acesso ao console do browser.
     ───────────────────────────────────────────────────────────── */
     var ESTILO_T = [
         'color:#F0B429', 'font-size:1.3rem', 'font-weight:900',
@@ -331,14 +335,17 @@
     ].join(';');
 
     function avisoConsole() {
-        console.clear();
+        if (!_isMobile) console.clear(); /* FIX v2.2: só limpa em desktop */
         console.log('%c⛔  ATENÇÃO', ESTILO_T);
         console.log('%cEste console é restrito. Qualquer tentativa de acesso não autorizado ao código fonte é proibida e pode configurar crime nos termos da Lei 12.737/2012.', ESTILO_B);
         console.log('%c© 2026 Art Plena Persianas — Todos os direitos reservados.', ESTILO_B);
     }
 
     avisoConsole();
-    setInterval(avisoConsole, 8000);
+    /* FIX v2.2: intervalo do aviso somente em desktop */
+    if (!_isMobile) {
+        setInterval(avisoConsole, 8000);
+    }
 
     /* ─────────────────────────────────────────────────────────────
        13. MASCARA VARIÁVEIS GLOBAIS SENSÍVEIS (EmailJS keys)
@@ -376,6 +383,11 @@
 
     /* ─────────────────────────────────────────────────────────────
        15. ANTI ARRASTAR / SELECIONAR TEXTO
+
+       FIX v2.2: selectstart ignora o evento inteiramente em mobile.
+       No mobile, o `selectstart` pode ser disparado durante a
+       inicialização do foco em campos de formulário via toque,
+       causando bloqueio indevido da interação.
     ───────────────────────────────────────────────────────────── */
     d.addEventListener('dragstart', function (e) {
         if (_elEhInterativo(e.target)) return;
@@ -383,6 +395,7 @@
     });
 
     d.addEventListener('selectstart', function (e) {
+        if (_isMobile) return; /* FIX v2.2: sem bloqueio de seleção em mobile */
         if (_elEhInterativo(e.target)) return;
         e.preventDefault();
     });
